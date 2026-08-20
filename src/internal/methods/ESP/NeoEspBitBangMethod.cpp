@@ -48,7 +48,8 @@ static inline uint32_t getCycleCount(void)
 }
 
 // Interrupt lock class, used for RAII interrupt disabling
-class InterruptLock {
+class InterruptLock
+{
 #if defined(ARDUINO_ARCH_ESP32)
     portMUX_TYPE updateMux;
 #endif
@@ -63,7 +64,7 @@ class InterruptLock {
     }
 
     inline void unlock()
-    {        
+    {
 #if defined(ARDUINO_ARCH_ESP32)
         portEXIT_CRITICAL(&updateMux);
 #else
@@ -78,12 +79,12 @@ public:
         unlock();
         lock();
     }
-    
+
     inline InterruptLock()
 #if defined(ARDUINO_ARCH_ESP32)
         : updateMux(portMUX_INITIALIZER_UNLOCKED)
-#endif    
-    { 
+#endif
+    {
         lock();
     }
 
