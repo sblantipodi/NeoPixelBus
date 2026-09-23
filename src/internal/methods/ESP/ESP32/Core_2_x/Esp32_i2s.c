@@ -17,13 +17,14 @@
 #if defined(ARDUINO_ARCH_ESP32)
 
 #include "sdkconfig.h" // this sets useful config symbols, like CONFIG_IDF_TARGET_ESP32C3
+#include "esp_idf_version.h"
 
 #include <string.h>
 #include <stdio.h>
 #include "stdlib.h"
 
 // ESP32 C3, S3, C5, C6, H2, and P4 I2S is not supported yet due to significant changes to interface
-#if !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C5) && !defined(CONFIG_IDF_TARGET_ESP32C6) && !defined(CONFIG_IDF_TARGET_ESP32H2) && !defined(CONFIG_IDF_TARGET_ESP32P4)
+#if ESP_IDF_VERSION_MAJOR < 6 && !defined(CONFIG_IDF_TARGET_ESP32C3) && !defined(CONFIG_IDF_TARGET_ESP32S3) && !defined(CONFIG_IDF_TARGET_ESP32C5) && !defined(CONFIG_IDF_TARGET_ESP32C6) && !defined(CONFIG_IDF_TARGET_ESP32H2) && !defined(CONFIG_IDF_TARGET_ESP32P4)
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
