@@ -81,7 +81,11 @@ public:
         ESP_ERROR_CHECK(rmt_disable(_channel)); 
         ESP_ERROR_CHECK(rmt_del_channel(_channel));
 
+#if ESP_IDF_VERSION_MAJOR >= 6
+        esp_rom_gpio_connect_out_signal(_pin, 0x100, false, false);
+#else
         gpio_matrix_out(_pin, 0x100, false, false);
+#endif
         pinMode(_pin, INPUT);
 
         free(_dataEditing);

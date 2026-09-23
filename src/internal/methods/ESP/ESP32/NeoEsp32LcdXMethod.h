@@ -36,6 +36,9 @@ extern "C"
 #include <esp_private/periph_ctrl.h>
 #endif
 #include <esp_private/gdma.h>
+#if ESP_IDF_VERSION_MAJOR >= 6
+#include <esp_private/gpio.h>
+#endif
 #include <esp_rom_gpio.h>
 //#include <esp_rom_lldesc.h>
 #include <hal/dma_types.h>
@@ -433,11 +436,16 @@ public:
             // Dummy phase(s) MUST be enabled for DMA to trigger reliably.
 
             // Alloc DMA channel & connect it to LCD periph
+#if ESP_IDF_VERSION_MAJOR >= 6
+            gdma_channel_alloc_config_t dma_chan_config = {};
+            ESP_ERROR_CHECK(gdma_new_ahb_channel(&dma_chan_config, &_dmaChannel, NULL));
+#else
             gdma_channel_alloc_config_t dma_chan_config = {
                 .sibling_chan = NULL,
                 .direction = GDMA_CHANNEL_DIRECTION_TX,
                 .flags = {.reserve_sibling = 0}};
             gdma_new_channel(&dma_chan_config, &_dmaChannel);
+#endif
             gdma_connect(_dmaChannel, GDMA_MAKE_TRIGGER(GDMA_TRIG_PERIPH_LCD, 0));
             gdma_strategy_config_t strategy_config = {.owner_check = false,
                                                         .auto_update_desc = false};
@@ -546,7 +554,9 @@ public:
         
         uint8_t muxIdx = LCD_DATA_OUT0_IDX + _muxId;
         esp_rom_gpio_connect_out_signal(pin, muxIdx, invert, false);
-        #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
+        #if ESP_IDF_VERSION_MAJOR >= 6
+            gpio_iomux_output((gpio_num_t)pin, PIN_FUNC_GPIO);
+        #elif ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
             gpio_iomux_out(pin, PIN_FUNC_GPIO, false);
         #else
             gpio_hal_iomux_func_sel(GPIO_PIN_MUX_REG[pin], PIN_FUNC_GPIO);
@@ -562,7 +572,11 @@ public:
         }
 
         // disconnect muxed pin
+#if ESP_IDF_VERSION_MAJOR >= 6
+        esp_rom_gpio_connect_out_signal(pin, SIG_GPIO_OUT_IDX, false, false);
+#else
         gpio_matrix_out(pin, SIG_GPIO_OUT_IDX, false, false);
+#endif
         pinMode(pin, INPUT);
 
         _muxId = s_context.MuxMap.InvalidMuxId;
