@@ -106,7 +106,7 @@ public:
         config.gpio_num = static_cast<gpio_num_t>(_pin);
 #if SOC_RMT_SUPPORT_DMA
         config.mem_block_symbols = 512;         // DMA decouples the buffer from RMT memory, so this is just a sane DMA buffer size
-#elif ESP_IDF_VERSION_MAJOR >= 6 && (defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32C5) || defined(CONFIG_IDF_TARGET_ESP32C6))
+#elif ESP_IDF_VERSION_MAJOR >= 6 && (defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C5) || defined(CONFIG_IDF_TARGET_ESP32C6))
         config.mem_block_symbols = SOC_RMT_MEM_WORDS_PER_CHANNEL; // IDF 6 removed TX candidates; Arduino's generic fallback of 5 can exceed RMT memory on these targets.
 #else
         config.mem_block_symbols = SOC_RMT_TX_CANDIDATES_PER_GROUP * SOC_RMT_MEM_WORDS_PER_CHANNEL; // max symbols a single TX channel can borrow from all TX-capable channels in its group: 512 on original ESP32 (8x64), 96 on ESP32-C3 (2x48). Requesting more than this fails rmt_new_tx_channel with "no free tx channels" since there is no contiguous free memory to satisfy it. A bigger half-buffer gives the RMT ISR more slack against BLE-induced preemption before the WS2811/WS2812x 300 µs reset threshold is hit, so we ask for the most each chip can give.
