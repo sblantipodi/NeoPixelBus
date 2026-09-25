@@ -106,8 +106,8 @@ public:
         config.gpio_num = static_cast<gpio_num_t>(_pin);
 #if SOC_RMT_SUPPORT_DMA
         config.mem_block_symbols = 512;         // DMA decouples the buffer from RMT memory, so this is just a sane DMA buffer size
-#elif ESP_IDF_VERSION_MAJOR >= 6 && (defined(CONFIG_IDF_TARGET_ESP32S2) || defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C5) || defined(CONFIG_IDF_TARGET_ESP32C6))
-        config.mem_block_symbols = SOC_RMT_MEM_WORDS_PER_CHANNEL; // IDF 6 removed TX candidates; Arduino's generic fallback of 5 can exceed RMT memory on these targets.
+#elif ESP_IDF_VERSION_MAJOR >= 6
+        config.mem_block_symbols = SOC_RMT_MEM_WORDS_PER_CHANNEL; // Overridden below while trying each available block count.
 #else
         config.mem_block_symbols = SOC_RMT_TX_CANDIDATES_PER_GROUP * SOC_RMT_MEM_WORDS_PER_CHANNEL; // max symbols a single TX channel can borrow from all TX-capable channels in its group: 512 on original ESP32 (8x64), 96 on ESP32-C3 (2x48). Requesting more than this fails rmt_new_tx_channel with "no free tx channels" since there is no contiguous free memory to satisfy it. A bigger half-buffer gives the RMT ISR more slack against BLE-induced preemption before the WS2811/WS2812x 300 µs reset threshold is hit, so we ask for the most each chip can give.
 #endif
@@ -120,7 +120,30 @@ public:
         config.flags.with_dma = false;          // chips without DMA support (original ESP32, ESP32-C3) use the static block sized above
 #endif
 
-        ret += rmt_new_tx_channel(&config, &_channel);
+#if ESP_IDF_VERSION_MAJOR >= 6 && !SOC_RMT_SUPPORT_DMA
+#if defined(CONFIG_IDF_TARGET_ESP32)
+        constexpr uint8_t maxRmtBlocks = 8;
+#elif defined(CONFIG_IDF_TARGET_ESP32S2)
+        constexpr uint8_t maxRmtBlocks = 4;
+#elif defined(CONFIG_IDF_TARGET_ESP32C3) || defined(CONFIG_IDF_TARGET_ESP32C5) || defined(CONFIG_IDF_TARGET_ESP32C6)
+        constexpr uint8_t maxRmtBlocks = 2;
+#else
+        constexpr uint8_t maxRmtBlocks = 1;
+#endif
+        // Reserve as much RMT memory as possible for this TX channel. If a block
+        // is already in use, retry with fewer blocks down to the hardware minimum.
+        for (uint8_t blocks = maxRmtBlocks; blocks > 0; --blocks)
+        {
+            config.mem_block_symbols = blocks * SOC_RMT_MEM_WORDS_PER_CHANNEL;
+            ret = rmt_new_tx_channel(&config, &_channel);
+            if (ret == ESP_OK)
+            {
+                break;
+            }
+        }
+#else
+        ret = rmt_new_tx_channel(&config, &_channel);
+#endif
         led_strip_encoder_config_t encoder_config = {};
         encoder_config.resolution = T_SPEED::RmtTicksPerSecond;
 
